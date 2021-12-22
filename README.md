@@ -1,6 +1,6 @@
-# HoloDoodler
+# Doodler
 
-This repository hosts HoloDoodler, a Python application (TBD) that allows interactive construction of sparse labeling for image segmentation using deep neural networks, based on the [Holoviz](https://holoviz.org/) ecosystem.
+This repository hosts `Doodler`, a Python application (TBD) that allows interactive construction of sparse labeling for image segmentation using deep neural networks, based on the [Holoviz](https://holoviz.org/) ecosystem.
 
 ## Project background
 
