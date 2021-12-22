@@ -38,3 +38,6 @@ panel serve doodler.ipynb --show
 
 This video shows the notebook content, how to use the application and the state of the application when deployed.
 
+
+https://user-images.githubusercontent.com/35924738/147021690-5e525c4c-326a-491b-9d27-994250ff9fbb.mp4
+
