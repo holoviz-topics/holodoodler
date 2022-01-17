@@ -20,21 +20,29 @@ conda env create --file environment_dev.yaml
 
 ## Development
 
-The application currently lives in the Jupyter notebook `doodler.ipynb`. The development process of such an app can be observed in the notebook where (1) a series of small and well defined components are built, (2) then they're put together in a class that links them when required, (3) a simple layout is built and displayed in the notebook for testing purposes, and (4) a more polished app is built based on a Panel template and is made deployable.
+The application currently lives in two places:
+* in the `app.py` script: the application can be served by Panel
+* in the the Jupyter notebook `doodler_nb.ipynb`: this notebook shows the development process of the app where (1) a series of small and well defined components are imported, (2) then they're put together in an `Application` class that links them when required, (3) a simple layout is built and displayed in the notebook for testing purposes, and (4) a more polished `template` app is built based on a Panel template and is made deployable.
 
 The notebook can be opened with:
 
 ```
-jupyter lab doodler.ipynb
+jupyter lab doodler_nb.ipynb
 ```
 
 The application can be launched with:
 
 ```
-panel serve doodler.ipynb --show
+panel serve app.py --show
 ```
 
-## Video
+Note that the application could also be launched with the following command:
+
+```
+panel serve doodler_nb.ipynb
+```
+
+## Video (not up to date)
 
 This video shows the notebook content, how to use the application and the state of the application when deployed.
 
