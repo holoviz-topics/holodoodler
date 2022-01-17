@@ -52,6 +52,8 @@ from skimage.transform import resize
 
 np.seterr(divide='ignore', invalid='ignore')
 
+logger = logging.getLogger(__name__)
+
 
 def fromhex(n):
     """ hexadecimal to integer """
@@ -181,14 +183,14 @@ def crf_refine(
 
     l_unique = np.unique(label.flatten())  # .tolist()
     scale = 1 + (5 * (np.array(img.shape).max() / 3000))
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('CRF scale: %f' % (scale))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('CRF scale: %f' % (scale))
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('CRF downsample factor: %f' % (crf_downsample_factor))
-    logging.info('CRF theta parameter: %f' % (crf_theta))
-    logging.info('CRF mu parameter: %f' % (crf_mu))
-    logging.info('CRF prior probability of labels: %f' % (gt_prob))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('CRF downsample factor: %f' % (crf_downsample_factor))
+    logger.debug('CRF theta parameter: %f' % (crf_theta))
+    logger.debug('CRF mu parameter: %f' % (crf_mu))
+    logger.debug('CRF prior probability of labels: %f' % (gt_prob))
 
     # decimate by factor by taking only every other row and column
     img = img[::crf_downsample_factor, ::crf_downsample_factor, :]
@@ -197,8 +199,8 @@ def crf_refine(
     # yes, I know this aliases, but considering the task, it is ok; the objective is to
     # make fast inference and resize the output
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Images downsampled by a factor os %f' % (crf_downsample_factor))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Images downsampled by a factor os %f' % (crf_downsample_factor))
 
     Hnew = label.shape[0]
     Wnew = label.shape[1]
@@ -239,13 +241,13 @@ def crf_refine(
 
     d.addPairwiseEnergy(feats, compat=crf_mu, kernel=dcrf.DIAG_KERNEL, normalization=dcrf.NORMALIZE_SYMMETRIC)  # 260
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('CRF feature extraction complete ... inference starting')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('CRF feature extraction complete ... inference starting')
 
     Q = d.inference(10)
     result = np.argmax(Q, axis=0).reshape((H, W)).astype(np.uint8) + 1
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('CRF inference made')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('CRF inference made')
 
     uniq = np.unique(result.flatten())
 
@@ -253,8 +255,8 @@ def crf_refine(
 
     result = rescale(result, orig_mn, orig_mx).astype(np.uint8)
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('label resized and rescaled ... CRF post-processing complete')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('label resized and rescaled ... CRF post-processing complete')
 
     return result, n
 
@@ -281,22 +283,22 @@ def features_sigma(
 
     del gx, gy
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Location features extracted using sigma= %f' % (sigma))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Location features extracted using sigma= %f' % (sigma))
 
     img_blur = filters.gaussian(img, sigma)
 
     if intensity:
         features.append(img_blur)
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Intensity features extracted using sigma= %f' % (sigma))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Intensity features extracted using sigma= %f' % (sigma))
 
     if edges:
         features.append(filters.sobel(img_blur))
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Edge features extracted using sigma= %f' % (sigma))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Edge features extracted using sigma= %f' % (sigma))
 
     if texture:
         H_elems = [
@@ -311,11 +313,11 @@ def features_sigma(
             features.append(eigval_mat)
         del eigval_mat
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Texture features extracted using sigma= %f' % (sigma))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Texture features extracted using sigma= %f' % (sigma))
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Image features extracted using sigma= %f' % (sigma))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Image features extracted using sigma= %f' % (sigma))
 
     return features
 
@@ -333,8 +335,8 @@ def extract_features_2d(
     """Features for a single channel image. ``img`` can be 2d or 3d.
     """
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Extracting features from channel %i' % (dim))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Extracting features from channel %i' % (dim))
 
     # computations are faster as float32
     img = img_as_float32(img)
@@ -348,18 +350,19 @@ def extract_features_2d(
     )
 
     if (psutil.virtual_memory()[0] > 10000000000) & (psutil.virtual_memory()[2] < 50):  # >10GB and <50% utilization
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Extracting features in parallel')
-        logging.info('Total RAM: %i' % (psutil.virtual_memory()[0]))
-        logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
-        all_results = Parallel(n_jobs=-2, verbose=0)(delayed(features_sigma)(img, sigma, intensity=intensity, edges=edges, texture=texture) for sigma in sigmas)
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Extracting features in parallel')
+        logger.debug('Total RAM: %i' % (psutil.virtual_memory()[0]))
+        logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+
+        all_results = Parallel(n_jobs=2, prefer="threads", verbose=0)(delayed(features_sigma)(img, sigma, intensity=intensity, edges=edges, texture=texture) for sigma in sigmas)
     else:
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Extracting features in series')
-        logging.info('Total RAM: %i' % (psutil.virtual_memory()[0]))
-        logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Extracting features in series')
+        logger.debug('Total RAM: %i' % (psutil.virtual_memory()[0]))
+        logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
         n_sigmas = len(sigmas)
         all_results = [
@@ -367,8 +370,8 @@ def extract_features_2d(
             for sigma in sigmas
         ]
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Features from channel %i for all scales' % (dim))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Features from channel %i for all scales' % (dim))
 
     return list(itertools.chain.from_iterable(all_results))
 
@@ -411,15 +414,15 @@ def extract_features(
             sigma_min=sigma_min,
             sigma_max=sigma_max,
         )
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Feature extraction complete')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Feature extraction complete')
 
-    logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
-    logging.info('Memory mapping features to temporary file')
+    logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+    logger.debug('Memory mapping features to temporary file')
 
     features = memmap_feats(features)
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
     return features  # np.array(features)
 
@@ -438,7 +441,7 @@ def memmap_feats(features):
     fp.flush()
     del features
     del fp
-    logging.info('Features memory mapped features to temporary file: %s' % outfile)
+    logger.debug('Features memory mapped features to temporary file: %s' % outfile)
 
     # read back in again without using any memory
     features = np.memmap(outfile, dtype=dtype, mode='r', shape=feats_shape)
@@ -497,13 +500,12 @@ def do_classify(
     lim_samples = 100000  # 200000
 
     if training_data.shape[0] > lim_samples:
-        logging.info('Number of samples exceeds %i' % lim_samples)
+        logger.debug('Number of samples exceeds %i' % lim_samples)
         ind = np.round(np.linspace(0, training_data.shape[0] - 1, lim_samples)).astype('int')
         training_data = training_data[ind, :]
         training_labels = training_labels[ind]
-        logging.info('Samples have been subsampled')
-        logging.info('Number of samples in training data: %i' % (training_data.shape[0]))
-        print(training_data.shape)
+        logger.debug('Samples have been subsampled')
+        logger.debug('Number of samples in training data: %i' % (training_data.shape[0]))
 
     clf = make_pipeline(
         StandardScaler(),
@@ -511,27 +513,27 @@ def do_classify(
             solver='adam', alpha=1, random_state=1, max_iter=2000,
             early_stopping=True, hidden_layer_sizes=[100, 60],
         ))
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Initializing MLP model')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Initializing MLP model')
 
     clf.fit(training_data, training_labels)
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('MLP model fit to data')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('MLP model fit to data')
 
     del training_data, training_labels
 
-    logging.info('Create and memory map model input data')
+    logger.debug('Create and memory map model input data')
 
     data = features[:, mask == 0].T
-    logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+    logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
     data = memmap_feats(data)
-    logging.info('Memory mapped model input data')
-    logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+    logger.debug('Memory mapped model input data')
+    logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
     labels = clf.predict(data)
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Model used on data to estimate labels')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Model used on data to estimate labels')
 
     if mask is None:
         result = labels.reshape(img.shape[:2])
@@ -543,9 +545,9 @@ def do_classify(
         result2 = result.copy()
         del result
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('RF feature extraction and model fitting complete')
-    logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('RF feature extraction and model fitting complete')
+    logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
     return result2
 
@@ -573,21 +575,20 @@ def segmentation(
     Then
     3) Calls crf_refine to apply CRF
     """
-
     # #standardization using adjusted standard deviation
     img = standardize(img)
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-    logging.info('Image standardized')
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug('Image standardized')
 
-    logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+    logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
     for ni in np.unique(mask[1:]):
-        logging.info('examples provided of %i' % (ni))
+        logger.debug('examples provided of %i' % (ni))
 
     if len(np.unique(mask)[1:]) == 1:
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Only one class annotation provided, skipping RF and CRF and coding all pixels %i' % (np.unique(mask)[1:]))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Only one class annotation provided, skipping RF and CRF and coding all pixels %i' % (np.unique(mask)[1:]))
         result2 = np.ones(mask.shape[:2]) * np.unique(mask)[1:]
         result2 = result2.astype(np.uint8)
 
@@ -609,28 +610,28 @@ def segmentation(
         Worig = img.shape[0]
         result = filter_one_hot(result, 2 * Worig)
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('One-hot labels filtered')
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('One-hot labels filtered')
 
         if Worig > 512:
             result = filter_one_hot_spatial(result, 2)
 
-            logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-            logging.info('One-hot labels spatially filtered')
+            logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+            logger.debug('One-hot labels spatially filtered')
         else:
-            logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-            logging.info('One-hot labels not spatially filtered because width < 512 pixels')
+            logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+            logger.debug('One-hot labels not spatially filtered because width < 512 pixels')
 
         result = result.astype('float')
         result[result == 0] = np.nan
         result = inpaint_nans(result).astype('uint8')
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Spatially filtered values inpainted')
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Spatially filtered values inpainted')
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('RF model applied with sigma range %f : %f' % (sigma_min, sigma_max))
-        logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('RF model applied with sigma range %f : %f' % (sigma_min, sigma_max))
+        logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
         def tta_crf_int(img, result, k):
             k = int(k)
@@ -646,17 +647,18 @@ def segmentation(
         num_tta = 5  # 10
 
         if (psutil.virtual_memory()[0] > 10000000000) & (psutil.virtual_memory()[2] < 50):  # >10GB and <50% utilization
-            logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-            logging.info('CRF parallel test-time augmentation')
-            logging.info('Total RAM: %i' % (psutil.virtual_memory()[0]))
-            logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
-            w = Parallel(n_jobs=-2, verbose=0)(delayed(tta_crf_int)(img, result, k) for k in np.linspace(0, int(img.shape[0]) / 5, num_tta))
+
+            logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+            logger.debug('CRF parallel test-time augmentation')
+            logger.debug('Total RAM: %i' % (psutil.virtual_memory()[0]))
+            logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+            w = Parallel(n_jobs=2, prefer="threads", verbose=0)(delayed(tta_crf_int)(img, result, k) for k in np.linspace(0, int(img.shape[0]) / 5, num_tta))
             R, W, n = zip(*w)
         else:
-            logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-            logging.info('CRF serial test-time augmentation')
-            logging.info('Total RAM: %i' % (psutil.virtual_memory()[0]))
-            logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+            logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+            logger.debug('CRF serial test-time augmentation')
+            logger.debug('Total RAM: %i' % (psutil.virtual_memory()[0]))
+            logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
             R = []
             W = []
             n = []
@@ -666,17 +668,17 @@ def segmentation(
                 W.append(w)
                 n.append(nn)
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('CRF model applied with %i test-time augmentations' % (num_tta))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('CRF model applied with %i test-time augmentations' % (num_tta))
 
         result2 = np.round(np.average(np.dstack(R), axis=-1, weights=W)).astype('uint8')
         del R, W
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Weighted average applied to test-time augmented outputs')
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Weighted average applied to test-time augmented outputs')
 
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('CRF model applied with theta=%f and mu=%f' % (crf_theta, crf_mu))
-        logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('CRF model applied with theta=%f and mu=%f' % (crf_theta, crf_mu))
+        logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
         if ((n == 1)):
             result2[result > 0] = np.unique(result)
@@ -684,8 +686,8 @@ def segmentation(
         result2 = result2.astype('float')
         result2[result2 == 0] = np.nan
         result2 = inpaint_nans(result2).astype('uint8')
-        logging.info(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
-        logging.info('Spatially filtered values inpainted')
-        logging.info('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
+        logger.debug(datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+        logger.debug('Spatially filtered values inpainted')
+        logger.debug('percent RAM usage: %f' % (psutil.virtual_memory()[2]))
 
     return result2
