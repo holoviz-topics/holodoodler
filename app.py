@@ -1,8 +1,3 @@
-# Hack from https://github.com/facebook/prophet/issues/1889
-# import multiprocessing
-# multiprocessing.set_start_method("fork")
-
-
 import configparser
 import logging
 import logging.config
