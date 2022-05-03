@@ -515,10 +515,8 @@ class Application(param.Parameterized):
     canvas_width = param.Integer(default=600)
 
     def __init__(self, **params):
-        super().__init__(**params)
         self._img_pane = pn.pane.HoloViews()
-        self._init_img_pane()
-        self._init_segmentation_output()
+        super().__init__(**params)
 
     def _init_img_pane(self):
         self._img_pane.object = self.input_image.plot * self.doodle_drawer.plot
@@ -535,7 +533,7 @@ class Application(param.Parameterized):
         self._segmentation = None
         self._mask_doodles = None
 
-    @param.depends('clear_segmentation', watch=True)
+    @param.depends('clear_segmentation', watch=True, on_init=True)
     def _clear_segmentation(self):
         self._init_img_pane()
         self._init_segmentation_output()
