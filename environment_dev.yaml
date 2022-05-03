@@ -1,4 +1,4 @@
-name: doodler-dev-test
+name: doodler-dev
 channels:
   - conda-forge
   - defaults
