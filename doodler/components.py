@@ -39,7 +39,7 @@ class Toggle(pn.reactive.ReactiveHTML):
     color = param.String(doc='Color of the border in hex format')
 
     _template = """
-    <button id="button" style="border-color:{{ color }};border-width:4px;border-radius:5%;padding-inline:10px;font-weight:{{ 'bold' if active else 'normal' }}" onclick="${_update}">
+    <button id="button" style="text-decoration: {{ 'underline' if active else 'normal' }};border-color:{{ color }};border-width:4px;border-radius:5%;padding:10px;font-weight:{{ 'bold' if active else 'normal' }}" onclick="${_update}">
         {{ klass }}
     </button>"""
 
@@ -47,8 +47,10 @@ class Toggle(pn.reactive.ReactiveHTML):
         'active': """
         if (data.active) {
             button.style.fontWeight = "bold"
+            button.style.textDecoration = "underline"
         } else {
             button.style.fontWeight = "normal"
+            button.style.textDecoration = null
         }
         """
     }
