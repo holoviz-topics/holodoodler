@@ -4,6 +4,7 @@ import json
 import logging
 import pathlib
 import time
+import os
 from typing import List, Optional, Tuple
 
 # External dependencies imports
@@ -15,6 +16,8 @@ import param
 import panel as pn
 import PIL
 from PIL import ImageDraw
+#from PIL import Image
+import rioxarray as rio
 
 from .segmentation.annotations_to_segmentations import label_to_colors
 from .segmentation.image_segmentation import segmentation
@@ -39,7 +42,7 @@ class Toggle(pn.reactive.ReactiveHTML):
     color = param.String(doc='Color of the border in hex format')
 
     _template = """
-    <button id="button" style="border-color:{{ color }};border-width:4px;border-radius:5%;padding-inline:10px;font-weight:{{ 'bold' if active else 'normal' }}" onclick="${_update}">
+    <button id="button" style="border-color:{{ color }};border-width:4px;border-radius:5%;padding-inline:10px;font-weight:{{ '' if active else 'normal' }}" onclick="${_update}">
         {{ klass }}
     </button>"""
 
@@ -325,31 +328,43 @@ class InputImage(param.Parameterized):
 
     @classmethod
     def from_folder(cls, imgs_folder, **params):
-        """Return a list of JPG and JPEG images in a folder (not recursively).
+        """Return a list of JPG, JPEG, TIF, or TIFF images in a folder (not recursively).
         """
-        jpegs = [
+        imfiles = [
             p
             for p in pathlib.Path(imgs_folder).iterdir()
-            if p.is_file() and p.suffix in ('.jpg', '.jpeg')
+            if p.is_file() and p.suffix.lower() in ('.jpg', '.jpeg', '.tif', '.tiff')
         ]
-        jpegs = sorted(jpegs)
+        imfiles = sorted(imfiles)
         input_image = cls(**params)
-        input_image.param.location.objects = jpegs
-        input_image.location = jpegs[0]
+        input_image.param.location.objects = imfiles
+        input_image.location = imfiles[0]
         return input_image
 
     @staticmethod
     def read_from_fs(path) -> np.ndarray:
-        """Read a JPEG as an Numpy array.
+        """Read tif or jpeg as an nd np array.
         """
-        img = PIL.Image.open(path)
-        nb_bands = len(img.getbands())
-        if nb_bands not in (3, 4):
-            raise ValueError(f'The input image "{path}" has a {nb_bands} channel(s), only JPEG with 3 or 4 channels are supported.')
-        # Some JPEG files follow the CMYK model instead of RGB
-        if nb_bands == 4:
-            img = img.convert('RGB')
-        arr = np.array(img)
+        fn, ext = os.path.splitext(path)
+        print(ext)
+        if (ext.lower() == '.jpg') or (ext.lower() == '.jpeg'):
+            img = Image.open(path)
+            nbands = len(img.getbands())
+            # previously, code assumed 4 bands indicated CMYK, but band 4 can also be alpha, so:
+            if img.mode == 'CMYK':
+                img = img.convert('RGB')
+
+            # jpeg array is (nrow, ncol, nband)
+            arr = np.array(img)
+
+        elif (ext.lower() == '.tif') or (ext.lower == '.tiff'):
+            dsx=rio.open_rasterio(path)
+            arr = np.array(dsx)
+            # tiff array is (nband, nrow, ncol)
+            nbands = arr.shape[0]
+            # reorder like jpg
+            arr = np.moveaxis(arr, 0, -1)
+
         return arr
 
     @param.depends('location', watch=True)
