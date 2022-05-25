@@ -1,4 +1,4 @@
-name: doodler-dev
+name: doodler-devcrs
 channels:
   - conda-forge
   - defaults
@@ -17,6 +17,8 @@ dependencies:
  - jupyterlab
  - holoviews
  - panel
+ - GDAL
+ - rioxarray
  - flake8
  - pytest
  - pytest-cov

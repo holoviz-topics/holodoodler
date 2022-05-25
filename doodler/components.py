@@ -16,7 +16,7 @@ import param
 import panel as pn
 import PIL
 from PIL import ImageDraw
-#from PIL import Image
+from PIL import Image
 import rioxarray as rio
 
 from .segmentation.annotations_to_segmentations import label_to_colors
