@@ -50,8 +50,10 @@ class Toggle(pn.reactive.ReactiveHTML):
         'active': """
         if (data.active) {
             button.style.fontWeight = "bold"
+            button.style.textDecoration = "underline"
         } else {
             button.style.fontWeight = "normal"
+            button.style.textDecoration = null
         }
         """
     }
