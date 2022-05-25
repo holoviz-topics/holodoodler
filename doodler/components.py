@@ -319,13 +319,9 @@ class InputImage(param.Parameterized):
 
     location = param.Selector(label='Input image (.JPEG)', doc='Current image path')
 
-    # Internal parameters
-
-    width = param.Integer(default=600, precedence=-1, doc='Image width')
-
     def __init__(self, **params):
         super().__init__(**params)
-        self._pane = pn.pane.HoloViews()
+        self._pane = pn.pane.HoloViews(sizing_mode='scale_height', min_height=300)
         self._load_image()
 
     @classmethod
@@ -372,14 +368,12 @@ class InputImage(param.Parameterized):
     @param.depends('location', watch=True)
     def _load_image(self):
         if not self.location:
-            self.plot = hv.RGB(data=[]).opts(frame_width=self.width)
-            self._pane.object = self.plot
+            self._plot = self._pane.object = hv.RGB(data=[])
             return
         self.array = array = self.read_from_fs(self.location)
         h, w, _ = array.shape
         # Preserve the aspect ratio
-        self.plot = hv.RGB(array, bounds=(-1, -1, 1, 1)).opts(frame_width=self.width, aspect=w/h)
-        self._pane.object = self.plot
+        self._plot = self._pane.object = hv.RGB(array, bounds=(-1, -1, 1, 1)).opts(aspect=(w / h))
 
     def remove_img(self):
         """Remove the current image and get the next one if available.
@@ -397,7 +391,17 @@ class InputImage(param.Parameterized):
             self.location = None
 
     @property
+    def plot(self):
+        """
+        RGB HoloViews element of the selected image.
+        """
+        return self._plot
+
+    @property
     def pane(self):
+        """
+        Panel HoloViews pane.
+        """
         return self._pane
 
 
@@ -532,11 +536,11 @@ class Application(param.Parameterized):
     canvas_width = param.Integer(default=600)
 
     def __init__(self, **params):
-        self._img_pane = pn.pane.HoloViews()
+        self._img_pane = pn.pane.HoloViews(sizing_mode='scale_height')
         super().__init__(**params)
 
     def _init_img_pane(self):
-        self._img_pane.object = self.input_image.plot * self.doodle_drawer.plot
+        self._img_pane.object = (self.input_image.plot * self.doodle_drawer.plot).opts(responsive='height')
 
     @param.depends('input_image.location', watch=True)
     def _reset(self):
@@ -603,7 +607,7 @@ class Application(param.Parameterized):
             )
 
             self.info.add('Rendering the results...')
-            hv_segmentation_color = hv.RGB(self._segmentation_color, bounds=(-1, -1, 1, 1)).opts(alpha=0.5)
+            hv_segmentation_color = hv.RGB(self._segmentation_color, bounds=(-1, -1, 1, 1)).opts(alpha=0.5, responsive='height')
             self._img_pane.object = self._img_pane.object * hv_segmentation_color
             duration = round(time.time() - start_time, 1)
             self.info.add(f'Process done in {duration}s.')
