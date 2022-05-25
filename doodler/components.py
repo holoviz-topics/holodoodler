@@ -224,6 +224,16 @@ class DoodleDrawer(pn.viewable.Viewer):
         self._drawn_pipe.event(data=[])
         self._draw_stream.event(data={})
 
+    def within(self, bbox):
+        """
+        Return True if the doodles are all within the given bounding box.
+        """
+        l, b, r, t = bbox
+        for d in self.doodles:
+            if d['x'].min() < l or d['x'].max() > r or d['y'].min() < b or d['y'].max() > t:
+                return False
+        return True
+
     @property
     def classes(self):
         return list(self.class_color_mapping.keys())
@@ -521,6 +531,9 @@ class Application(param.Parameterized):
         doodles = self.doodle_drawer.doodles
         if not doodles:
             self.info.update('Draw doodles before trying to run the algorithm.', 'danger')
+            return
+        if not self.doodle_drawer.within(self.input_image.img_bounds):
+            self.info.update('At least a doodle was found to be drawn outside of the image bounds.', 'danger')
             return
         if not self.input_image.location:
             self.info.update('Input image not loaded.', 'danger')
