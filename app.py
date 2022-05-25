@@ -67,7 +67,6 @@ app = Application(settings=settings, doodle_drawer=doodle_drawer, info=info, inp
 # Layout the components
 side_bar = pn.Column(
     app.input_image.param.location,
-    app.input_image.param.width,
     pn.pane.HTML('<b>Doodling options</b>'),
     app.doodle_drawer.class_toggle_group,
     app.doodle_drawer.param.line_width,
