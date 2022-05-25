@@ -1,4 +1,4 @@
-name: doodler-dev
+name: holodoodler-dev37
 channels:
   - conda-forge
   - defaults
