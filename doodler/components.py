@@ -4,7 +4,7 @@ import json
 import logging
 import pathlib
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 # External dependencies imports
 import holoviews as hv
@@ -242,44 +242,6 @@ class DoodleDrawer(pn.viewable.Viewer):
             self._accumulate_drawn_lines()
         return self._accumulated_lines
 
-# The geometry of the doodles obtained from DoodleDrawer is defined by a series
-# of points referenced in a given coordinate system. What we want is to turn the
-# doodles into a mask (each class being represented by an integer) whose dimension
-# is equal to the dimension of the image the doodles will be associated with.
-# The following functions allow to create such a mask from the doodles.
-
-
-def _project_line_dimension(s: pd.Series, cur_range, target_range) -> pd.Series:
-    """Project the dimension of a line. E.g. if x coordinates in an image whose
-    x range is [0, 1] to an image with an x range of [0, 100].
-    """
-    assert ((cur_range[0] <= s) & (s <= cur_range[1])).all()
-    assert cur_range[0] < cur_range[1]
-    assert target_range[0] < target_range[1]
-    return target_range[0] + (target_range[1] - target_range[0]) * (s - cur_range[0]) / (cur_range[1] - cur_range[0])
-
-
-def project_doodles(
-    doodles: List[pd.DataFrame],
-    x_cur_range: Tuple[float, float],
-    y_cur_range: Tuple[float, float],
-    x_target_range: Tuple[int, int],
-    y_target_range: Tuple[int, int],
-) -> List[pd.DataFrame]:
-    """Project and rescale the doodles from HoloViews to PIL
-    """
-    projected = []
-    for df_doodle in doodles:
-        df_proj = df_doodle.copy()
-
-        df_proj['x_proj'] = _project_line_dimension(df_proj['x'], x_cur_range, x_target_range)
-        df_proj['y_proj'] = _project_line_dimension(df_proj['y'], y_cur_range, y_target_range)
-
-        # Because the origin is bottom left in bokeh and top left in PIL
-        df_proj['y_proj'] = y_target_range[1] - df_proj['y_proj']
-        projected.append(df_proj)
-    return projected
-
 
 def doodles_as_array(
     doodles: List[pd.DataFrame],
@@ -294,7 +256,7 @@ def doodles_as_array(
     for doodle in doodles:
         # Project each line from the bokeh coordinate system to the one required to create them with PIL.
         # List of vertices (x, y)
-        vertices = list(doodle[['x_proj', 'y_proj']].itertuples(index=False, name=None))
+        vertices = list(doodle[['x', 'y']].itertuples(index=False, name=None))
         # There's a unique width per line
         line_width = doodle.loc[0, 'line_width']
         # Index of the colomap + 1
@@ -315,6 +277,10 @@ class InputImage(param.Parameterized):
     # UI elements
 
     location = param.Selector(label='Input image (.JPEG)', doc='Current image path')
+
+    # Internal
+
+    img_bounds = param.NumericTuple(None, length=4, doc='Bounding box in pixels.')
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -360,8 +326,11 @@ class InputImage(param.Parameterized):
             return
         self.array = array = self.read_from_fs(self.location)
         h, w, _ = array.shape
+        self.img_bounds = (0, 0, w, h)
         # Preserve the aspect ratio
-        self._plot = self._pane.object = hv.RGB(array, bounds=(-1, -1, 1, 1)).opts(aspect=(w / h))
+        self._plot = self._pane.object = hv.RGB(
+            array, bounds=self.img_bounds
+        ).opts(aspect=(w / h))
 
     def remove_img(self):
         """Remove the current image and get the next one if available.
@@ -562,17 +531,9 @@ class Application(param.Parameterized):
             self.info.update('Start...')
 
             self.info.add('Projecting/Converting doodles into a mask...')
-            img_height, img_width, _ = self.input_image.array.shape
-            projected_doodles = project_doodles(
-                doodles,
-                x_cur_range=self.input_image.plot.range('x'),
-                y_cur_range=self.input_image.plot.range('y'),
-                x_target_range=(0, img_width),
-                y_target_range=(0, img_height),
-            )
-            # Get a mask with the doodles
+            _, _, img_width, img_height = self.input_image.img_bounds
             self._mask_doodles = doodles_as_array(
-                projected_doodles,
+                doodles,
                 img_width=img_width,
                 img_height=img_height,
                 colormap=self.doodle_drawer.colormap,
@@ -595,7 +556,9 @@ class Application(param.Parameterized):
             )
 
             self.info.add('Rendering the results...')
-            hv_segmentation_color = hv.RGB(self._segmentation_color, bounds=(-1, -1, 1, 1)).opts(alpha=0.5, responsive='height')
+            hv_segmentation_color = hv.RGB(
+                self._segmentation_color, bounds=self.input_image.img_bounds
+            ).opts(alpha=0.5, responsive='height')
             self._img_pane.object = self._img_pane.object * hv_segmentation_color
             duration = round(time.time() - start_time, 1)
             self.info.add(f'Process done in {duration}s.')
