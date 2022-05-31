@@ -14,10 +14,10 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
+import tifffile
 import PIL
 from PIL import ImageDraw
 from PIL import Image
-import rioxarray as rio
 
 from .segmentation.annotations_to_segmentations import label_to_colors
 from .segmentation.image_segmentation import segmentation
@@ -289,7 +289,7 @@ class InputImage(param.Parameterized):
 
     # UI elements
 
-    location = param.Selector(label='Input image (.JPEG)', doc='Current image path')
+    location = param.Selector(label='Input image (.JPEG or .TIFF)', doc='Current image path')
 
     # Internal
 
@@ -320,25 +320,21 @@ class InputImage(param.Parameterized):
         """Read tif or jpeg as an nd np array.
         """
         fn, ext = os.path.splitext(path)
-        print(ext)
-        if (ext.lower() == '.jpg') or (ext.lower() == '.jpeg'):
+
+        if ext.lower() in ('.jpg', '.jpeg'):
             img = Image.open(path)
             nbands = len(img.getbands())
-            # previously, code assumed 4 bands indicated CMYK, but band 4 can also be alpha, so:
             if img.mode == 'CMYK':
                 img = img.convert('RGB')
 
-            # jpeg array is (nrow, ncol, nband)
             arr = np.array(img)
 
-        elif (ext.lower() == '.tif') or (ext.lower == '.tiff'):
-            dsx=rio.open_rasterio(path)
-            arr = np.array(dsx)
-            # tiff array is (nband, nrow, ncol)
-            nbands = arr.shape[0]
-            # reorder like jpg
-            arr = np.moveaxis(arr, 0, -1)
+        elif ext.lower() in ('.tif', '.tiff'):
+            img = tifffile.imread(path)
+            arr = np.array(img)
+            nbands = arr.shape[2]
 
+        # array is (nrows, ncols, nbands)
         return arr
 
     @param.depends('location', watch=True)
@@ -346,12 +342,18 @@ class InputImage(param.Parameterized):
         if not self.location:
             self._plot = self._pane.object = hv.RGB(data=[])
             return
-        self.array = array = self.read_from_fs(self.location)
-        h, w, _ = array.shape
+        array  = self.read_from_fs(self.location)
+        self.array = array
+        h, w, nbands = array.shape
+        if nbands > 3:
+            img = array[:,:,0:3].copy()
+        else:
+            img = array.copy()
+
         self.img_bounds = (0, 0, w, h)
         # Preserve the aspect ratio
         self._plot = self._pane.object = hv.RGB(
-            array, bounds=self.img_bounds
+            img, bounds=self.img_bounds
         ).opts(aspect=(w / h))
 
     def remove_img(self):
