@@ -5,6 +5,8 @@ import logging
 import pathlib
 import time
 from typing import List, Optional
+import os
+from typing import List, Optional, Tuple
 
 # External dependencies imports
 import holoviews as hv
@@ -13,8 +15,10 @@ import numpy as np
 import pandas as pd
 import param
 import panel as pn
+import tifffile
 import PIL
 from PIL import ImageDraw
+from PIL import Image
 
 from .segmentation.annotations_to_segmentations import label_to_colors
 from .segmentation.image_segmentation import segmentation
@@ -286,7 +290,7 @@ class InputImage(param.Parameterized):
 
     # UI elements
 
-    location = param.Selector(label='Input image (.JPEG)', doc='Current image path')
+    location = param.Selector(label='Input image (.JPEG or .TIFF)', doc='Current image path')
 
     # Internal
 
@@ -299,34 +303,39 @@ class InputImage(param.Parameterized):
 
     @classmethod
     def from_folder(cls, imgs_folder, **params):
-        """Return a list of JPG and JPEG images in a folder (not recursively).
+        """Return a list of JPG, JPEG, TIF, or TIFF images in a folder (not recursively).
         """
-        jpegs = [
+        imfiles = [
             p
             for p in pathlib.Path(imgs_folder).iterdir()
-            if p.is_file() and p.suffix in ('.jpg', '.jpeg')
+            if p.is_file() and p.suffix.lower() in ('.jpg', '.jpeg', '.tif', '.tiff')
         ]
-        jpegs = sorted(jpegs)
+        imfiles = sorted(imfiles)
         input_image = cls(**params)
-        input_image.param.location.objects = jpegs
-        input_image.location = jpegs[0]
+        input_image.param.location.objects = imfiles
+        input_image.location = imfiles[0]
         return input_image
 
     @staticmethod
     def read_from_fs(path) -> np.ndarray:
-        """Read a JPEG as an Numpy array.
+        """Read tif or jpeg as an nd np array.
         """
-        img = PIL.Image.open(path)
-        nb_bands = len(img.getbands())
-        if nb_bands not in (3, 4):
-            raise ValueError(
-                f'The input image "{path}" has {nb_bands} channel(s), '
-                'only JPEG with 3 or 4 channels are supported.'
-            )
-        # Some JPEG files follow the CMYK model instead of RGB
-        if nb_bands == 4:
-            img = img.convert('RGB')
-        arr = np.array(img)
+        fn, ext = os.path.splitext(path)
+
+        if ext.lower() in ('.jpg', '.jpeg'):
+            img = Image.open(path)
+            nbands = len(img.getbands())
+            if img.mode == 'CMYK':
+                img = img.convert('RGB')
+
+            arr = np.array(img)
+
+        elif ext.lower() in ('.tif', '.tiff'):
+            img = tifffile.imread(path)
+            arr = np.array(img)
+            nbands = arr.shape[2]
+
+        # array is (nrows, ncols, nbands)
         return arr
 
     @param.depends('location', watch=True)
@@ -334,12 +343,20 @@ class InputImage(param.Parameterized):
         if not self.location:
             self._plot = self._pane.object = hv.RGB(data=[])
             return
-        self.array = array = self.read_from_fs(self.location)
-        h, w, _ = array.shape
+        array  = self.read_from_fs(self.location)
+        self.array = array
+        # this is where we want to split the image array used for doodling
+        # and the n-band array for segmentation
+        h, w, nbands = array.shape
+        if nbands > 3:
+            img = array[:,:,0:3].copy()
+        else:
+            img = array.copy()
+
         self.img_bounds = (0, 0, w, h)
         # Preserve the aspect ratio
         self._plot = self._pane.object = hv.RGB(
-            array, bounds=self.img_bounds
+            img, bounds=self.img_bounds
         ).opts(aspect=(w / h))
 
     def remove_img(self):

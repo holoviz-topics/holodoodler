@@ -1,0 +1,27 @@
+name: doodler-devcrs
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+ - python=3.7
+ - CairoSVG
+ - matplotlib
+ - scipy
+ - numpy
+ - scikit-image
+ - Pillow
+ - scikit-learn
+ - cairo
+ - tqdm
+ - psutil
+ - jupyterlab
+ - holoviews
+ - panel
+ - GDAL
+ - rioxarray
+ - flake8
+ - pytest
+ - pytest-cov
+ - pip
+ - pip:
+   - git+https://github.com/li-plus/pydensecrf.git@0d53acbcf5123d4c88040fe68fbb9805fc5b2fb9
