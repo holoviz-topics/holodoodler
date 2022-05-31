@@ -344,6 +344,8 @@ class InputImage(param.Parameterized):
             return
         array  = self.read_from_fs(self.location)
         self.array = array
+        # this is where we want to split the image array used for doodling
+        # and the n-band array for segmentation
         h, w, nbands = array.shape
         if nbands > 3:
             img = array[:,:,0:3].copy()
