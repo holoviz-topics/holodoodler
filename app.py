@@ -65,7 +65,7 @@ info = Info()
 app = Application(settings=settings, doodle_drawer=doodle_drawer, info=info, input_image=input_image)
 
 # Layout the components
-side_bar = pn.Column(
+side_bar = [
     app.input_image.param.location,
     pn.pane.HTML('<b>Doodling options</b>'),
     app.doodle_drawer.class_toggle_group,
@@ -76,7 +76,7 @@ side_bar = pn.Column(
     pn.widgets.Button.from_param(app.param.clear_segmentation, button_type='warning'),
     pn.widgets.Button.from_param(app.param.save_segmentation, button_type='success'),
     app.info,
-)
+]
 main = app.plot_pane
 
 # Populate the template with the side bar layout and the main layout
@@ -84,7 +84,7 @@ template = pn.template.MaterialTemplate(
     title='Doodler',
     logo='assets/1280px-USGS_logo.png',
     header_background='#000000',
-    sidebar=[side_bar],
+    sidebar=side_bar,
     main=[main],
 )
 
