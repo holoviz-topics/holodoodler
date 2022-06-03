@@ -2,11 +2,11 @@
 import datetime
 import json
 import logging
+import os
 import pathlib
 import time
+
 from typing import List, Optional
-import os
-from typing import List, Optional, Tuple
 
 # External dependencies imports
 import holoviews as hv
@@ -320,21 +320,15 @@ class InputImage(param.Parameterized):
     def read_from_fs(path) -> np.ndarray:
         """Read tif or jpeg as an nd np array.
         """
-        fn, ext = os.path.splitext(path)
+        _, ext = os.path.splitext(path)
 
         if ext.lower() in ('.jpg', '.jpeg'):
             img = Image.open(path)
-            nbands = len(img.getbands())
             if img.mode == 'CMYK':
                 img = img.convert('RGB')
-
-            arr = np.array(img)
-
         elif ext.lower() in ('.tif', '.tiff'):
             img = tifffile.imread(path)
-            arr = np.array(img)
-            nbands = arr.shape[2]
-
+        arr = np.array(img)
         # array is (nrows, ncols, nbands)
         return arr
 
@@ -343,13 +337,12 @@ class InputImage(param.Parameterized):
         if not self.location:
             self._plot = self._pane.object = hv.RGB(data=[])
             return
-        array  = self.read_from_fs(self.location)
-        self.array = array
+        self.array = array = self.read_from_fs(self.location)
         # this is where we want to split the image array used for doodling
         # and the n-band array for segmentation
         h, w, nbands = array.shape
         if nbands > 3:
-            img = array[:,:,0:3].copy()
+            img = array[:, :, 0:3].copy()
         else:
             img = array.copy()
 
